@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadFeeRates() {
         try {
             const data = { fastestFee: 20, halfHourFee: 15, hourFee: 10 };
-            feeRatesDisplay.textContent = `快速: ${data.fastestFee  sat/vB, 中等: ${data.halfHourFee} sat/vB, 慢速: ${data.hourFee} sat/vB`;
+            feeRatesDisplay.textContent = `快速: ${data.fastestFee} sat/vB, 中等: ${data.halfHourFee} sat/vB, 慢速: ${data.hourFee} sat/vB`;
             feeRatesDisplay.dataset.fees = JSON.stringify(data);
         } catch (error) {
             console.error('加载费率失败:', error);
