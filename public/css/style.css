@@ -1,31 +1,38 @@
 body {
     font-family: Arial, sans-serif;
-    max-width: 600px;
-    margin: 0 auto;
+    text-align: center;
     padding: 20px;
 }
 h1 {
-    text-align: center;
-}
-label {
-    font-weight: bold;
-}
-input {
-    width: 100%;
-    padding: 8px;
-    margin: 5px 0;
+    color: #333;
 }
 button {
     background-color: #4CAF50;
     color: white;
-    padding: 10px;
+    padding: 10px 20px;
     border: none;
+    border-radius: 5px;
     cursor: pointer;
-    margin: 5px 0;
+    margin: 10px;
 }
-button:hover {
-    background-color: #45a049;
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+input[type="text"], input[type="number"] {
+    padding: 10px;
+    margin: 10px;
+    width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+label {
+    display: block;
+    margin: 10px 0;
 }
 p {
-    margin-top: 20px;
+    margin: 10px 0;
+}
+#wallet-modal button {
+    margin: 5px;
 }

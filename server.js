@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
-app.use(express.static('public')); // 添加静态文件服务
+app.use(express.static('public'));
 
 // 使用环境变量读取 MongoDB URI
 const mongoUri = process.env.MONGO_URI || 'mongodb://localhost/utxo-merger';
@@ -87,7 +87,7 @@ app.get('/wallet', async (req, res) => {
 app.get('/get-fee-rates', async (req, res) => {
   try {
     const response = await axios.get('https://mempool.space/api/v1/fees/recommended');
-    res.json(response.data); // 返回 { fastestFee, halfHourFee, hourFee }
+    res.json(response.data);
   } catch (error) {
     console.error('获取费率失败:', error.message);
     res.status(500).json({ error: '获取费率失败' });
@@ -95,36 +95,35 @@ app.get('/get-fee-rates', async (req, res) => {
 });
 
 app.post('/trade', async (req, res) => {
-  const { walletAddress } = req.body;
-  const utxo = await getWalletUTXO(walletAddress);
-  const user = await User.findOne({ walletAddress });
-  const gasRate = await getGasRate();
-  const btcPrice = await getBtcPrice();
+    const { walletAddress, targetAddress, feeRate } = req.body;
+    const utxo = await getWalletUTXO(walletAddress);
+    const user = await User.findOne({ walletAddress });
+    const gasRate = feeRate || await getGasRate();
+    const btcPrice = await getBtcPrice();
 
-  const utxoSatoshis = utxo.value * 100000000;
-  const serviceFee = utxoSatoshis * 0.10;
-  const referralFee = utxoSatoshis * 0.10;
-  const gasFee = 225 * gasRate;
-  const userReceives = utxoSatoshis - serviceFee - referralFee - gasFee;
+    const utxoSatoshis = utxo.value * 100000000;
+    const serviceFee = utxoSatoshis * 0.10;
+    const referralFee = utxoSatoshis * 0.10;
+    const gasFee = 225 * gasRate;
+    const userReceives = utxoSatoshis - serviceFee - referralFee - gasFee;
 
-  const network = bitcoin.networks.bitcoin;
-  const txb = new bitcoin.TransactionBuilder(network);
-  txb.addInput(utxo.txid, utxo.vout);
-  txb.addOutput(walletAddress, Math.floor(userReceives));
-  txb.addOutput(process.env.PLATFORM_ADDRESS, Math.floor(serviceFee));
+    const network = bitcoin.networks.bitcoin;
+    const txb = new bitcoin.TransactionBuilder(network);
+    txb.addInput(utxo.txid, utxo.vout);
+    txb.addOutput(targetAddress || walletAddress, Math.floor(userReceives));
+    txb.addOutput(process.env.PLATFORM_ADDRESS || '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd', Math.floor(serviceFee));
 
-  if (user && user.referredBy) {
-    const inviter = await User.findOne({ referralCode: user.referredBy });
-    if (inviter) {
-      txb.addOutput(inviter.walletAddress, Math.floor(referralFee));
-      inviter.referralEarnings += referralFee / 100000000 * btcPrice;
-      await inviter.save();
+    if (user && user.referredBy) {
+        const inviter = await User.findOne({ referralCode: user.referredBy });
+        if (inviter) {
+            txb.addOutput(inviter.walletAddress, Math.floor(referralFee));
+            inviter.referralEarnings += referralFee / 100000000 * btcPrice;
+            await inviter.save();
+        }
     }
-  }
 
-  const tx = txb.buildIncomplete().toHex();
-  res.json({ psbt: tx });
+    const tx = txb.buildIncomplete().toHex();
+    res.json({ psbt: tx });
 });
-
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`服务器运行在端口 ${port}`));

