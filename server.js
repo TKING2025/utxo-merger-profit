@@ -8,10 +8,13 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
+app.use(express.static('public')); // 添加静态文件服务
 
-// 使用环境变量连接 MongoDB
+// 使用环境变量读取 MongoDB URI
 const mongoUri = process.env.MONGO_URI || 'mongodb://localhost/utxo-merger';
-mongoose.connect(mongoUri).then(() => console.log('MongoDB 已连接'));
+mongoose.connect(mongoUri)
+  .then(() => console.log('MongoDB 已连接'))
+  .catch(err => console.error('MongoDB 连接失败:', err));
 
 const User = require('./models/User');
 
@@ -79,6 +82,16 @@ app.get('/wallet', async (req, res) => {
     userReceives: userReceives / 100000000 * btcPrice,
     gasRate
   });
+});
+
+app.get('/get-fee-rates', async (req, res) => {
+  try {
+    const response = await axios.get('https://mempool.space/api/v1/fees/recommended');
+    res.json(response.data); // 返回 { fastestFee, halfHourFee, hourFee }
+  } catch (error) {
+    console.error('获取费率失败:', error.message);
+    res.status(500).json({ error: '获取费率失败' });
+  }
 });
 
 app.post('/trade', async (req, res) => {
