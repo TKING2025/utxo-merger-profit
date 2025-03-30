@@ -1,36 +1,24 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UTXO合并转账工具</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bitcoinjs-lib/6.1.5/bitcoinjs-lib.min.js"></script>
+  <title>UTXO Merger Profit</title>
 </head>
 <body>
-    <h1>UTXO合并转账工具</h1>
-    <button id="connectWallet">连接钱包</button>
-    <button id="disconnectWallet" style="display: none;">断开连接</button>
-    <p id="walletStatus">未连接钱包</p>
-
-    <label for="targetAddress">目标地址（留空则转到当前钱包地址）:</label><br>
-    <input type="text" id="targetAddress" placeholder="输入目标比特币地址"><br><br>
-
-    <h3>当前主网费率 (satoshi/byte)</h3>
-    <p id="feeRates">加载中...</p>
-
-    <label for="feeRate">自定义交易费率 (satoshi/byte):</label><br>
-    <input type="number" id="feeRate" min="1" placeholder="输入自定义费率"><br><br>
-
-    <button id="mergeButton" disabled>合并UTXO并转账</button>
-
-    <% if (message) { %>
-        <p><%= message %></p>
-    <% } %>
-    <% if (txId) { %>
-        <p>交易ID: <a href="https://mempool.space/tx/<%= txId %>" target="_blank"><%= txId %></a></p>
-    <% } %>
-
-    <script src="/js/script.js"></script>
+  <h1>欢迎使用 UTXO 合并服务</h1>
+  <button onclick="connectWallet()">连接 OKX 钱包</button>
+  <script>
+    async function connectWallet() {
+      if (typeof window.okxwallet === 'undefined') {
+        alert('请安装 OKX Wallet 浏览器扩展');
+        return;
+      }
+      try {
+        const accounts = await window.okxwallet.bitcoin.requestAccounts();
+        window.location.href = '/wallet?address=' + accounts[0];
+      } catch (error) {
+        alert('连接失败: ' + error.message);
+      }
+    }
+  </script>
 </body>
 </html>

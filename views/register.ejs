@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>注册</title>
+</head>
+<body>
+  <h1>注册</h1>
+  <form action="/register" method="POST">
+    <input type="text" name="username" placeholder="用户名" required>
+    <input type="text" name="walletAddress" placeholder="钱包地址" required>
+    <input type="hidden" name="referralCode" value="<%= referralCode %>">
+    <button type="submit">注册</button>
+  </form>
+  <% if (referralCode) { %>
+    <p>通过推荐码 <%= referralCode %> 访问</p >
+  <% } %>
+</body>
+</html>
