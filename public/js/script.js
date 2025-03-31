@@ -51,8 +51,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (walletType === 'unisat' && window.unisat) {
                 return window.unisat;
             }
-            if (walletType === 'okxweb3' && window.okxwallet && window.okxwallet.bitcoin) {
-                return window.okxwallet;
+            if (walletType === 'okxweb3' && window.okxwallet) {
+                if (window.okxwallet.bitcoin && typeof window.okxwallet.bitcoin.connect === 'function') {
+                    return window.okxwallet;
+                }
+                console.warn(`OKX 钱包 bitcoin 属性未加载，重试 ${i + 1}/${maxRetries}`);
             }
             await new Promise(resolve => setTimeout(resolve, delay));
         }
@@ -173,6 +176,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     signedTxHex = await unisat.signPsbt(psbt.toHex());
                 } else if (walletProvider === 'okx') {
                     const okxwallet = await waitForWallet('okxweb3');
+                    if (!okxwallet.bitcoin || typeof okxwallet.bitcoin.signPsbt !== 'function') {
+                        throw new Error('OKX 钱包 bitcoin.signPsbt 方法不可用，请检查扩展状态');
+                    }
                     signedTxHex = await okxwallet.bitcoin.signPsbt(psbt.toHex());
                 } else {
                     throw new Error('未选择有效的钱包');
