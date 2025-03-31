@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         profitAddress: '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd', // 你的收益地址
         profitRate: 0.1 // 10% 收益
     };
+    // 保护 state 对象，防止意外修改
+    Object.seal(state);
 
     const connectButton = document.getElementById('connect-wallet');
     const disconnectButton = document.getElementById('disconnect-wallet');
@@ -21,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 改进的 fetch 方法，处理非 JSON 响应
     async function fetchWithErrorHandling(url, options) {
+        console.log('fetchWithErrorHandling 调用，当前 walletProvider:', state.walletProvider);
         const response = await fetch(url, options);
         if (!response.ok) {
             const text = await response.text();
@@ -37,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 加载主网费率
     async function loadFeeRates() {
         try {
+            console.log('loadFeeRates 调用，当前 walletProvider:', state.walletProvider);
             const data = await fetchWithErrorHandling('/get-fee-rates');
             if (data.error) {
                 throw new Error(data.error);
@@ -103,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 重置状态
             state.walletProvider = null;
             state.walletAddress = null;
-            console.log('连接钱包，walletType:', walletType);
+            console.log('连接钱包，walletType:', walletType, '当前 walletProvider:', state.walletProvider);
 
             if (walletType === 'unisat') {
                 const unisat = await waitForWallet('unisat');
@@ -161,11 +165,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const feeRate = parseInt(feeRateInput.value) || 10;
 
             try {
+                console.log('开始合并 UTXO，当前 walletProvider:', state.walletProvider);
                 if (!state.walletProvider || !state.walletAddress) {
                     throw new Error('未连接钱包，请先连接钱包');
                 }
 
                 // 获取 UTXO
+                console.log('获取 UTXO，当前 walletProvider:', state.walletProvider);
                 const utxoData = await fetchWithErrorHandling('/get-utxos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -197,7 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const psbt = txb.buildIncomplete().toPSBT();
 
                 // 签名
-                let signedTxHex;
                 console.log('准备签名，当前 walletProvider:', state.walletProvider);
                 if (state.walletProvider === 'unisat') {
                     console.log('使用 UniSat 钱包签名...');
@@ -219,6 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 // 广播交易
+                console.log('广播交易，当前 walletProvider:', state.walletProvider);
                 const broadcastData = await fetchWithErrorHandling('/broadcast', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
