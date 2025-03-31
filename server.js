@@ -94,36 +94,72 @@ app.get('/get-fee-rates', async (req, res) => {
   }
 });
 
-app.post('/trade', async (req, res) => {
-    const { walletAddress, targetAddress, feeRate } = req.body;
-    const utxo = await getWalletUTXO(walletAddress);
-    const user = await User.findOne({ walletAddress });
-    const gasRate = feeRate || await getGasRate();
-    const btcPrice = await getBtcPrice();
-
-    const utxoSatoshis = utxo.value * 100000000;
-    const serviceFee = utxoSatoshis * 0.10;
-    const referralFee = utxoSatoshis * 0.10;
-    const gasFee = 225 * gasRate;
-    const userReceives = utxoSatoshis - serviceFee - referralFee - gasFee;
-
-    const network = bitcoin.networks.bitcoin;
-    const txb = new bitcoin.TransactionBuilder(network);
-    txb.addInput(utxo.txid, utxo.vout);
-    txb.addOutput(targetAddress || walletAddress, Math.floor(userReceives));
-    txb.addOutput(process.env.PLATFORM_ADDRESS || '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd', Math.floor(serviceFee));
-
-    if (user && user.referredBy) {
-        const inviter = await User.findOne({ referralCode: user.referredBy });
-        if (inviter) {
-            txb.addOutput(inviter.walletAddress, Math.floor(referralFee));
-            inviter.referralEarnings += referralFee / 100000000 * btcPrice;
-            await inviter.save();
-        }
-    }
-
-    const tx = txb.buildIncomplete().toHex();
-    res.json({ psbt: tx });
+app.post('/get-utxos', async (req, res) => {
+  const { address } = req.body;
+  if (!address) {
+    return res.status(400).json({ error: '缺少钱包地址' });
+  }
+  try {
+    const response = await axios.get(`https://mempool.space/api/address/${address}/utxo`);
+    const utxos = response.data.map(utxo => ({
+      txid: utxo.txid,
+      vout: utxo.vout,
+      value: utxo.value
+    }));
+    res.json({ utxos });
+  } catch (error) {
+    console.error('获取 UTXO 失败:', error.message);
+    res.status(500).json({ error: '获取 UTXO 失败' });
+  }
 });
+
+app.post('/broadcast', async (req, res) => {
+  const { txHex } = req.body;
+  if (!txHex) {
+    return res.status(400).json({ error: '缺少交易数据' });
+  }
+  try {
+    const response = await axios.post('https://mempool.space/api/tx', txHex, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
+    res.json({ txId: response.data });
+  } catch (error) {
+    console.error('广播交易失败:', error.message);
+    res.status(500).json({ error: '广播交易失败' });
+  }
+});
+
+app.post('/trade', async (req, res) => {
+  const { walletAddress, targetAddress, feeRate } = req.body;
+  const utxo = await getWalletUTXO(walletAddress);
+  const user = await User.findOne({ walletAddress });
+  const gasRate = feeRate || await getGasRate();
+  const btcPrice = await getBtcPrice();
+
+  const utxoSatoshis = utxo.value * 100000000;
+  const serviceFee = utxoSatoshis * 0.10;
+  const referralFee = utxoSatoshis * 0.10;
+  const gasFee = 225 * gasRate;
+  const userReceives = utxoSatoshis - serviceFee - referralFee - gasFee;
+
+  const network = bitcoin.networks.bitcoin;
+  const txb = new bitcoin.TransactionBuilder(network);
+  txb.addInput(utxo.txid, utxo.vout);
+  txb.addOutput(targetAddress || walletAddress, Math.floor(userReceives));
+  txb.addOutput(process.env.PLATFORM_ADDRESS || '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd', Math.floor(serviceFee));
+
+  if (user && user.referredBy) {
+    const inviter = await User.findOne({ referralCode: user.referredBy });
+    if (inviter) {
+      txb.addOutput(inviter.walletAddress, Math.floor(referralFee));
+      inviter.referralEarnings += referralFee / 100000000 * btcPrice;
+      await inviter.save();
+    }
+  }
+
+  const tx = txb.buildIncomplete().toHex();
+  res.json({ psbt: tx });
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`服务器运行在端口 ${port}`));
