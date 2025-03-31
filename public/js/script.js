@@ -22,20 +22,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const feeRateInput = document.getElementById('custom-fee-rate');
     const feeRatesDisplay = document.getElementById('fee-rates');
 
-    // 改进的 fetch 方法，处理非 JSON 响应
+    // 改进的 fetch 方法，处理非 JSON 响应并提供详细错误信息
     async function fetchWithErrorHandling(url, options) {
         console.log('fetchWithErrorHandling 调用，当前 walletProvider:', state.walletProvider);
-        const response = await fetch(url, options);
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP 错误: ${response.status}, 响应: ${text}`);
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP 错误: ${response.status}, 响应: ${text}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`预期 JSON 响应，但收到: ${text}`);
+            }
+            return response.json();
+        } catch (error) {
+            console.error('fetchWithErrorHandling 失败:', error.message);
+            throw new Error(`网络请求失败: ${error.message}`);
         }
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`预期 JSON 响应，但收到: ${text}`);
-        }
-        return response.json();
     }
 
     // 加载主网费率
