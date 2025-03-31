@@ -72,14 +72,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             if (walletType === 'unisat') {
                 if (!window.unisat) {
-                    throw new Error('UniSat 钱包未安装');
+                    throw new Error('UniSat 钱包未安装，请安装 UniSat 钱包扩展');
                 }
                 const accounts = await window.unisat.requestAccounts();
                 walletProvider = 'unisat';
                 walletAddress = accounts[0];
             } else if (walletType === 'okxweb3') {
                 if (!window.okxwallet) {
-                    throw new Error('OKX 钱包未安装');
+                    throw new Error('OKX 钱包未安装，请安装 OKX 钱包扩展');
+                }
+                if (!window.okxwallet.bitcoin) {
+                    throw new Error('OKX 钱包未正确加载比特币功能，请确保扩展已启用');
                 }
                 const result = await window.okxwallet.bitcoin.connect();
                 walletProvider = 'okx';
@@ -159,9 +162,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 签名
                 let signedTxHex;
                 if (walletProvider === 'unisat') {
+                    if (!window.unisat) {
+                        throw new Error('UniSat 钱包未安装');
+                    }
                     signedTxHex = await window.unisat.signPsbt(psbt.toHex());
                 } else if (walletProvider === 'okx') {
+                    if (!window.okxwallet || !window.okxwallet.bitcoin) {
+                        throw new Error('OKX 钱包未正确加载');
+                    }
                     signedTxHex = await window.okxwallet.bitcoin.signPsbt(psbt.toHex());
+                } else {
+                    throw new Error('未选择有效的钱包');
                 }
 
                 // 广播交易
