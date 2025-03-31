@@ -1,5 +1,5 @@
 // 确保引入 bitcoinjs-lib（需要在页面中引入，或者通过模块加载）
-console.log('Script.js version: 2025-03-31-v4');
+console.log('Script.js version: 2025-03-31-v5');
 const Bitcoin = window.bitcoinjs || {}; // 如果通过 <script> 引入
 
 document.addEventListener('DOMContentLoaded', async () => {
