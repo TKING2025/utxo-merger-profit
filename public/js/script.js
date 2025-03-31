@@ -1,4 +1,5 @@
 // 确保引入 bitcoinjs-lib（需要在页面中引入，或者通过模块加载）
+// Force Render redeployment - 2025-03-31
 console.log('Script.js version: 2025-03-31-v6');
 const Bitcoin = window.bitcoinjs || {}; // 如果通过 <script> 引入
 
