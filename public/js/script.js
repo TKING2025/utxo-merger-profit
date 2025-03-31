@@ -45,21 +45,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 检测钱包是否可用（添加延迟重试机制）
+    // 检测钱包是否可用（添加延迟重试机制和调试日志）
     async function waitForWallet(walletType, maxRetries = 5, delay = 1000) {
+        console.log(`开始检测 ${walletType} 钱包...`);
         for (let i = 0; i < maxRetries; i++) {
             if (walletType === 'unisat' && window.unisat) {
+                console.log('UniSat 钱包已加载');
                 return window.unisat;
             }
             if (walletType === 'okxweb3' && window.okxwallet) {
+                console.log('OKX 钱包对象存在，检查 bitcoin 属性...');
                 if (window.okxwallet.bitcoin && typeof window.okxwallet.bitcoin.connect === 'function') {
+                    console.log('OKX 钱包 bitcoin 属性已加载');
                     return window.okxwallet;
                 }
                 console.warn(`OKX 钱包 bitcoin 属性未加载，重试 ${i + 1}/${maxRetries}`);
+            } else {
+                console.warn(`OKX 钱包对象未加载，重试 ${i + 1}/${maxRetries}`);
             }
             await new Promise(resolve => setTimeout(resolve, delay));
         }
-        throw new Error(`${walletType === 'unisat' ? 'UniSat' : 'OKX'} 钱包未加载，请确保扩展已安装并启用`);
+        throw new Error(`${walletType === 'unisat' ? 'UniSat' : 'OKX'} 钱包未加载，请确保扩展已安装并启用。建议使用 UniSat 钱包。`);
     }
 
     // 显示钱包选择弹窗
@@ -172,12 +178,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 签名
                 let signedTxHex;
                 if (walletProvider === 'unisat') {
+                    console.log('使用 UniSat 钱包签名...');
                     const unisat = await waitForWallet('unisat');
                     signedTxHex = await unisat.signPsbt(psbt.toHex());
                 } else if (walletProvider === 'okx') {
+                    console.log('使用 OKX 钱包签名...');
                     const okxwallet = await waitForWallet('okxweb3');
                     if (!okxwallet.bitcoin || typeof okxwallet.bitcoin.signPsbt !== 'function') {
-                        throw new Error('OKX 钱包 bitcoin.signPsbt 方法不可用，请检查扩展状态');
+                        console.error('OKX 钱包 bitcoin.signPsbt 方法不可用');
+                        throw new Error('OKX 钱包签名功能不可用，请检查扩展状态或使用 UniSat 钱包');
                     }
                     signedTxHex = await okxwallet.bitcoin.signPsbt(psbt.toHex());
                 } else {
