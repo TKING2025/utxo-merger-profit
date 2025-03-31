@@ -204,16 +204,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // 签名
                 console.log('准备签名，当前 walletProvider:', state.walletProvider);
+                console.log('walletProvider 类型:', typeof state.walletProvider);
+                console.log('walletProvider 值:', JSON.stringify(state.walletProvider));
+                let signedTxHex;
                 if (state.walletProvider === 'unisat') {
-                    console.log('使用 UniSat 钱包签名...');
+                    console.log('进入 UniSat 分支，使用 UniSat 钱包签名...');
                     const unisat = await waitForWallet('unisat');
                     signedTxHex = await unisat.signPsbt(psbt.toHex());
                 } else if (state.walletProvider === 'okx') {
-                    console.log('使用 OKX 钱包签名...');
+                    console.log('进入 OKX 分支，使用 OKX 钱包签名...');
                     const okxwallet = await waitForWallet('okxweb3');
-                    console.log('OKX 钱包对象:', okxwallet);
-                    console.log('OKX 钱包 bitcoin 属性:', okxwallet.bitcoin);
-                    if (!okxwallet.bitcoin || typeof okxwallet.bitcoin.signPsbt !== 'function') {
+                    if (!okxwallet || !okxwallet.bitcoin || typeof okxwallet.bitcoin.signPsbt !== 'function') {
                         console.error('OKX 钱包 bitcoin.signPsbt 方法不可用');
                         throw new Error('OKX 钱包签名功能不可用，请检查扩展状态或使用 UniSat 钱包');
                     }

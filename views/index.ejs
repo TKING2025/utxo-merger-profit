@@ -11,34 +11,34 @@
 <body>
     <h1>UTXO合并转账工具</h1>
 
-    <!-- 钱包连接 -->
-    <button id="connect-wallet">链接钱包</button>
-    <button id="disconnect-wallet" style="display: none;">断开连接</button>
-    <p id="wallet-status">未连接钱包</p>
+<!-- 钱包连接 -->
+<button id="connect-wallet">链接钱包</button>
+<button id="disconnect-wallet" style="display: none;">断开连接</button>
+<span id="wallet-status">未连接钱包</span>
 
-    <!-- 目标地址 -->
-    <label for="target-address">目标地址（留空则转回当前钱包地址）:</label>
-    <input type="text" id="target-address" placeholder="请输入目标地址">
+<!-- 目标地址 -->
+<label for="target-address">目标地址（留空则转回当前钱包地址）:</label>
+<input type="text" id="target-address" placeholder="请输入目标地址">
 
-    <!-- 主网费率 -->
-    <p>当前主网费率 (satoshi/byte):</p>
-    <p id="fee-rates">快速: 3, 中等: 3, 慢速: 3</p>
+<!-- 主网费率 -->
+<p>当前主网费率 (satoshi/byte):</p>
+<span id="fee-rates"></span>
 
-    <!-- 自定义费率 -->
-    <label for="custom-fee-rate">自定义交易费率 (satoshi/byte):</label>
-    <input type="number" id="custom-fee-rate" placeholder="推荐: 3">
+<!-- 自定义费率 -->
+<label for="custom-fee-rate">自定义交易费率 (satoshi/byte):</label>
+<input type="number" id="custom-fee-rate" placeholder="推荐: 3">
 
-    <!-- 合并 UTXO 按钮 -->
-    <button id="merge-utxo" disabled>合并UTXO并转账</button>
+<!-- 合并 UTXO 按钮 -->
+<button id="merge-utxo" disabled>合并UTXO并转账</button>
 
-    <!-- 邀请朋友 -->
-    <button id="invite-friends">邀请朋友</button>
-    <div id="invite-link" style="display: none;">
-        <p>你的专属邀请链接：<a id="invite-url" href=""></a></p>
-        <p>邀请朋友可从他们的合并过程中赚取10%服务费用作为奖励</p>
-    </div>
+<!-- 邀请朋友 -->
+<button id="invite-friends">邀请朋友</button>
+<div id="invite-link" style="display: none;">
+    <a id="invite-url" target="_blank"></a>
+    <p>邀请朋友可从他们的合并过程中赚取10%服务费用作为奖励</p>
+</div>
 
-    <!-- 引入脚本 -->
-    <script src="/js/script.js"></script>
+<!-- 引入脚本 -->
+<script src="/js/script.js"></script>
 </body>
 </html>
