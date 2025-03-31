@@ -1,5 +1,6 @@
 // 确保引入 bitcoinjs-lib（需要在页面中引入，或者通过模块加载）
 const Bitcoin = window.bitcoinjs || {}; // 如果通过 <script> 引入
+// 例如： <script src="https://unpkg.com/bitcoinjs-lib@5.2.0/dist/bitcoinjs-lib.min.js"></script>
 
 document.addEventListener('DOMContentLoaded', async () => {
     let walletProvider = null;
@@ -85,9 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('wallet-modal').remove();
         }
     }
-
-    // 绑定“链接钱包”按钮事件
-    connectButton.addEventListener('click', showWalletOptions);
 
     // 断开连接
     disconnectButton.addEventListener('click', () => {
