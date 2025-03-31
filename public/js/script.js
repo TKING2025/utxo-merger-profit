@@ -45,6 +45,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // 检测钱包是否可用（添加延迟重试机制）
+    async function waitForWallet(walletType, maxRetries = 5, delay = 1000) {
+        for (let i = 0; i < maxRetries; i++) {
+            if (walletType === 'unisat' && window.unisat) {
+                return window.unisat;
+            }
+            if (walletType === 'okxweb3' && window.okxwallet && window.okxwallet.bitcoin) {
+                return window.okxwallet;
+            }
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        throw new Error(`${walletType === 'unisat' ? 'UniSat' : 'OKX'} 钱包未加载，请确保扩展已安装并启用`);
+    }
+
     // 显示钱包选择弹窗
     function showWalletOptions() {
         const walletOptions = `
@@ -71,20 +85,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function connectWallet(walletType) {
         try {
             if (walletType === 'unisat') {
-                if (!window.unisat) {
-                    throw new Error('UniSat 钱包未安装，请安装 UniSat 钱包扩展');
-                }
-                const accounts = await window.unisat.requestAccounts();
+                const unisat = await waitForWallet('unisat');
+                const accounts = await unisat.requestAccounts();
                 walletProvider = 'unisat';
                 walletAddress = accounts[0];
             } else if (walletType === 'okxweb3') {
-                if (!window.okxwallet) {
-                    throw new Error('OKX 钱包未安装，请安装 OKX 钱包扩展');
-                }
-                if (!window.okxwallet.bitcoin) {
-                    throw new Error('OKX 钱包未正确加载比特币功能，请确保扩展已启用');
-                }
-                const result = await window.okxwallet.bitcoin.connect();
+                const okxwallet = await waitForWallet('okxweb3');
+                const result = await okxwallet.bitcoin.connect();
                 walletProvider = 'okx';
                 walletAddress = result.address;
             } else {
@@ -162,15 +169,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 签名
                 let signedTxHex;
                 if (walletProvider === 'unisat') {
-                    if (!window.unisat) {
-                        throw new Error('UniSat 钱包未安装');
-                    }
-                    signedTxHex = await window.unisat.signPsbt(psbt.toHex());
+                    const unisat = await waitForWallet('unisat');
+                    signedTxHex = await unisat.signPsbt(psbt.toHex());
                 } else if (walletProvider === 'okx') {
-                    if (!window.okxwallet || !window.okxwallet.bitcoin) {
-                        throw new Error('OKX 钱包未正确加载');
-                    }
-                    signedTxHex = await window.okxwallet.bitcoin.signPsbt(psbt.toHex());
+                    const okxwallet = await waitForWallet('okxweb3');
+                    signedTxHex = await okxwallet.bitcoin.signPsbt(psbt.toHex());
                 } else {
                     throw new Error('未选择有效的钱包');
                 }
