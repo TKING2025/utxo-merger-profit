@@ -100,13 +100,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (walletType === 'unisat') {
                 const unisat = await waitForWallet('unisat');
                 const accounts = await unisat.requestAccounts();
-                walletProvider = 'unisat';
+                walletProvider = 'unisat'; // 确保设置 walletProvider
                 walletAddress = accounts[0];
+                console.log('UniSat 钱包连接成功，walletProvider:', walletProvider);
             } else if (walletType === 'okxweb3') {
                 const okxwallet = await waitForWallet('okxweb3');
                 const result = await okxwallet.bitcoin.connect();
-                walletProvider = 'okx';
+                walletProvider = 'okx'; // 确保设置 walletProvider
                 walletAddress = result.address;
+                console.log('OKX 钱包连接成功，walletProvider:', walletProvider);
             } else {
                 throw new Error('不支持的钱包类型');
             }
@@ -138,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             connectButton.style.display = 'inline';
             disconnectButton.style.display = 'none';
             mergeButton.disabled = true;
+            console.log('钱包已断开连接，walletProvider:', walletProvider);
         });
     }
 
@@ -181,6 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // 签名
                 let signedTxHex;
+                console.log('当前 walletProvider:', walletProvider);
                 if (walletProvider === 'unisat') {
                     console.log('使用 UniSat 钱包签名...');
                     const unisat = await waitForWallet('unisat');
@@ -196,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     signedTxHex = await okxwallet.bitcoin.signPsbt(psbt.toHex());
                 } else {
-                    throw new Error('未选择有效的钱包');
+                    throw new Error('未选择有效的钱包，请重新连接钱包');
                 }
 
                 // 广播交易
