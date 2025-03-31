@@ -55,11 +55,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (walletType === 'okxweb3' && window.okxwallet) {
                 console.log('OKX 钱包对象存在，检查 bitcoin 属性...');
-                if (window.okxwallet.bitcoin && typeof window.okxwallet.bitcoin.connect === 'function') {
-                    console.log('OKX 钱包 bitcoin 属性已加载');
+                if (
+                    window.okxwallet.bitcoin &&
+                    typeof window.okxwallet.bitcoin.connect === 'function' &&
+                    typeof window.okxwallet.bitcoin.signPsbt === 'function'
+                ) {
+                    console.log('OKX 钱包 bitcoin 属性已加载，包括 connect 和 signPsbt 方法');
                     return window.okxwallet;
                 }
-                console.warn(`OKX 钱包 bitcoin 属性未加载，重试 ${i + 1}/${maxRetries}`);
+                console.warn(`OKX 钱包 bitcoin 属性未完全加载，重试 ${i + 1}/${maxRetries}`);
             } else {
                 console.warn(`OKX 钱包对象未加载，重试 ${i + 1}/${maxRetries}`);
             }
@@ -184,6 +188,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (walletProvider === 'okx') {
                     console.log('使用 OKX 钱包签名...');
                     const okxwallet = await waitForWallet('okxweb3');
+                    console.log('OKX 钱包对象:', okxwallet);
+                    console.log('OKX 钱包 bitcoin 属性:', okxwallet.bitcoin);
                     if (!okxwallet.bitcoin || typeof okxwallet.bitcoin.signPsbt !== 'function') {
                         console.error('OKX 钱包 bitcoin.signPsbt 方法不可用');
                         throw new Error('OKX 钱包签名功能不可用，请检查扩展状态或使用 UniSat 钱包');
