@@ -97,18 +97,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 连接钱包
     async function connectWallet(walletType) {
         try {
+            // 重置 walletProvider 和 walletAddress
+            walletProvider = null;
+            walletAddress = null;
+            console.log('连接钱包，walletType:', walletType);
+
             if (walletType === 'unisat') {
                 const unisat = await waitForWallet('unisat');
                 const accounts = await unisat.requestAccounts();
                 walletProvider = 'unisat'; // 确保设置 walletProvider
                 walletAddress = accounts[0];
-                console.log('UniSat 钱包连接成功，walletProvider:', walletProvider);
+                console.log('UniSat 钱包连接成功，walletProvider:', walletProvider, 'walletAddress:', walletAddress);
             } else if (walletType === 'okxweb3') {
                 const okxwallet = await waitForWallet('okxweb3');
                 const result = await okxwallet.bitcoin.connect();
                 walletProvider = 'okx'; // 确保设置 walletProvider
                 walletAddress = result.address;
-                console.log('OKX 钱包连接成功，walletProvider:', walletProvider);
+                console.log('OKX 钱包连接成功，walletProvider:', walletProvider, 'walletAddress:', walletAddress);
             } else {
                 throw new Error('不支持的钱包类型');
             }
@@ -121,6 +126,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('连接钱包失败:', error);
             walletStatus.textContent = '连接钱包失败: ' + error.message;
             document.getElementById('wallet-modal').remove();
+            walletProvider = null;
+            walletAddress = null;
         }
     }
 
@@ -140,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             connectButton.style.display = 'inline';
             disconnectButton.style.display = 'none';
             mergeButton.disabled = true;
-            console.log('钱包已断开连接，walletProvider:', walletProvider);
+            console.log('钱包已断开连接，walletProvider:', walletProvider, 'walletAddress:', walletAddress);
         });
     }
 
@@ -151,6 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const feeRate = parseInt(feeRateInput.value) || 10;
 
             try {
+                if (!walletProvider || !walletAddress) {
+                    throw new Error('未连接钱包，请先连接钱包');
+                }
+
                 // 获取 UTXO
                 const utxoData = await fetchWithErrorHandling('/get-utxos', {
                     method: 'POST',
@@ -200,6 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     signedTxHex = await okxwallet.bitcoin.signPsbt(psbt.toHex());
                 } else {
+                    console.error('无效的 walletProvider:', walletProvider);
                     throw new Error('未选择有效的钱包，请重新连接钱包');
                 }
 
