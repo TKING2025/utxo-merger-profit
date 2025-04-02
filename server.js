@@ -10,7 +10,6 @@ app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 
-// 使用环境变量读取 MongoDB URI
 const mongoUri = process.env.MONGO_URI || 'mongodb://localhost/utxo-merger';
 mongoose.connect(mongoUri)
   .then(() => console.log('MongoDB 已连接'))
@@ -28,7 +27,7 @@ async function getGasRate() {
     return response.data.fastestFee;
   } catch (error) {
     console.error('获取 Gas 费率失败:', error);
-    return 2; // 默认值
+    return 2;
   }
 }
 
@@ -38,7 +37,7 @@ async function getBtcPrice() {
     return response.data.bitcoin.usd;
   } catch (error) {
     console.error('获取比特币价格失败:', error);
-    return 80000; // 默认值
+    return 80000;
   }
 }
 
@@ -48,7 +47,7 @@ async function getWalletUTXO(walletAddress) {
     return response.data.map(utxo => ({
       txid: utxo.txid,
       vout: utxo.vout,
-      value: utxo.value // 以聪为单位
+      value: utxo.value
     }));
   } catch (error) {
     console.error('获取 UTXO 失败:', error.message);
@@ -56,7 +55,11 @@ async function getWalletUTXO(walletAddress) {
   }
 }
 
-app.get('/', (req, res) => res.render('index'));
+app.get('/', (req, res) => {
+  const message = req.query.message || '';
+  const txId = req.query.txId || '';
+  res.render('index', { message, txId });
+});
 
 app.get('/register', (req, res) => {
   const referralCode = req.query.ref || null;
@@ -87,9 +90,9 @@ app.get('/wallet', async (req, res) => {
   let totalSatoshis = 0;
   utxos.forEach(utxo => totalSatoshis += utxo.value);
 
-  const serviceFee = totalSatoshis * 0.10; // 10% 服务费
-  const referralFee = totalSatoshis * 0.10; // 10% 推荐费
-  const txSize = utxos.length * 148 + 34 + 10; // 粗略估算交易大小
+  const serviceFee = totalSatoshis * 0.10;
+  const referralFee = totalSatoshis * 0.10;
+  const txSize = utxos.length * 148 + 34 + 10;
   const gasFee = txSize * gasRate;
   const userReceives = totalSatoshis - serviceFee - referralFee - gasFee;
 
@@ -162,21 +165,19 @@ app.post('/trade', async (req, res) => {
   const network = bitcoin.networks.bitcoin;
   const psbt = new bitcoin.Psbt({ network });
 
-  // 添加输入
   let totalInputSatoshis = 0;
   utxos.forEach(utxo => {
     psbt.addInput({
       hash: utxo.txid,
       index: utxo.vout,
-      nonWitnessUtxo: null // UniSat 会处理签名，留空即可
+      nonWitnessUtxo: null
     });
     totalInputSatoshis += utxo.value;
   });
 
-  // 计算费用
-  const serviceFee = totalInputSatoshis * 0.10; // 10% 服务费
-  const referralFee = totalInputSatoshis * 0.10; // 10% 推荐费
-  const txSize = utxos.length * 148 + 34 * 3 + 10; // 粗略估算（3 个输出）
+  const serviceFee = totalInputSatoshis * 0.10;
+  const referralFee = totalInputSatoshis * 0.10;
+  const txSize = utxos.length * 148 + 34 * 3 + 10;
   const gasFee = txSize * gasRate;
   const userReceives = totalInputSatoshis - serviceFee - referralFee - gasFee;
 
@@ -184,7 +185,6 @@ app.post('/trade', async (req, res) => {
     return res.status(400).json({ error: '余额不足以支付费用' });
   }
 
-  // 添加输出
   psbt.addOutput({ address: targetAddress, value: Math.floor(userReceives) });
   psbt.addOutput({
     address: process.env.PLATFORM_ADDRESS || '15Kh1QUbZg9cT9UXvtABjg12RCPmzbNLpd',
